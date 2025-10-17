@@ -7,7 +7,7 @@ name = "cbspec"
 version = "0.1.0"
 description = "A project for analyzing CB spectrum data"
 authors = [
-    { name = "Your Name", email = "your.email@example.com" }
+    { name = "Robert D'Avignon", email = "rjdavignon@outlook.com" }
 ]
 readme = "README.md"
 license = { text = "MIT" }
@@ -22,7 +22,8 @@ dependencies = [
     "numpy",
     "awkward",
     "pyarrow",
-    "pandas"
+    "pandas",
+    "matplotlib"
 ]
 
 [tool.setuptools.packages.find]
