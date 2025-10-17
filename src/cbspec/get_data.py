@@ -20,12 +20,12 @@ def set_up_data_frame(infile: Path, array_type: str):
         if array_type == "CBSD":
             theta_corr = 1
         for i in parquet_file.iter_batches(batch_size=160000):
-            print("RecordBatch")
+            print(f"RecordBatch {i}")
             df = i.to_pandas()
             if 'energy' in df.columns:
                 print('Tree Type: resTree')
                 s = 2
-                en = df['energy'].str[0] / 1.27  # FD energy correction
+                en = df['energy'].str[0] / config.FDENERGYCOR
                 sc = df['sc'].str[0]
                 dsc = df['dsc'].str[0]
                 ngsd = df['nstclust']
@@ -36,14 +36,14 @@ def set_up_data_frame(infile: Path, array_type: str):
                 print('Tree Type: tTlfit')
                 s = 1
                 df['energy'] = df['energy_s800_p']
-                en = df['energy'] / 1.27  # FD energy correction
+                en = df['energy'] / config.FDENERGYCOR
                 sc = df['sc']
                 dsc = df['dsc']
                 ngsd = df['ngsd']
                 bdist = df['bdist']
                 ldf = df['ldfchi2pdof']
                 gf = df['gfchi2pdof'].str[1]
-            mcen = df['mcenergy'] / 1.27
+            mcen = df['mcenergy'] / config.FDENERGYCOR
             theta = df['theta'].str[s] + theta_corr  # shift correction
             dtheta = df['dtheta'].str[s]
             mctheta = df['mctheta']
