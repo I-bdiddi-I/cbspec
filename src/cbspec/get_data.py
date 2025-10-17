@@ -43,7 +43,6 @@ def set_up_data_frame(infile: Path, array_type: str):
                 bdist = df['bdist']
                 ldf = df['ldfchi2pdof']
                 gf = df['gfchi2pdof'].str[1]
-            print(s)
             mcen = df['mcenergy'] / 1.27
             theta = df['theta'].str[s] + theta_corr  # shift correction
             dtheta = df['dtheta'].str[s]
