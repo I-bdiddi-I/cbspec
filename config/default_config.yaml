@@ -17,7 +17,16 @@ geometry:
   generated_solid_angle_sr: 2.35619449 # Generated solid angle (Dmitri's thesis): 3π/4
 
 run:
-  time_s: 504921600 # 16 years in seconds
+  time_s: 504921600. # 16 years of expirement run time in seconds
+
+quality_cuts:
+  number_of_good_sd: 5
+  theta_deg: 45.
+  boarder_dist_m: 1200.
+  geometry_chi2: 4.
+  ldf_chi2: 4.
+  ped_error: 5.
+  frac_s800: 0.25
 
 plotting:
   output_dir: "/output/plots"
