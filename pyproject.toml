@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cbspec"
 version = "0.1.0"
-description = "A project for analyzing CB spectrum data"
+description = "A project for converting TASD/CBSD detector data into a UHECR spectrum"
 authors = [
     { name = "Robert D'Avignon", email = "rjdavignon@outlook.com" }
 ]
@@ -23,11 +23,13 @@ dependencies = [
     "awkward",
     "pyarrow",
     "pandas",
-    "matplotlib"
+    "matplotlib",
+    "scipy",
+    "pyyaml",
 ]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [project.scripts]
-cbspec-main = "cbspec.main:main"
+cbspec = "cbspec.main:main"
