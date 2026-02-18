@@ -79,6 +79,8 @@ def process_batch(df, array_type, j_index, comp_df, cuts: QualityCuts, batch_idx
                     [MC_recon, data_recon, MC_raw]
     :param cuts: QualityCuts
                  Quality cut thresholds.
+    :param batch_idx: int
+                      current batch index
     :return: Updated comp_df entries.
     """
 
@@ -157,9 +159,13 @@ def set_up_data_frame(infiles, array_type, cuts: QualityCuts):
         - RecordBatch
         - Accepted events per batch
         - Running total per file
-    :param infiles:
-    :param array_type:
-    :param cuts:
+
+    :param infiles: list of Path
+                    [MC_file, data_file]
+    :param array_type: str
+                       "TASD" or "CBSD"
+    :param cuts: QualityCuts
+                 Quality cut thresholds
     :return: (mc_df, dt_df, mc_raw_df)
     """
     comp_df = [pd.DataFrame(), pd.DataFrame(), pd.DataFrame()]
