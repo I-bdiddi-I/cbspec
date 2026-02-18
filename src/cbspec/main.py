@@ -1,5 +1,5 @@
 import config
-import get_data
+import process_data
 
 if __name__ == "__main__":
     #print(config.GENAREA)

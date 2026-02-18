@@ -3,6 +3,8 @@ This module handles YAML configuration loading.
 """
 
 from pathlib import Path
+import yaml
+import numpy as np
 from cbspec.data_classes import ArrayConfig, SpectrumConfig, QualityCuts
 
 def load_config(path: Path):

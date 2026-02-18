@@ -1,0 +1,203 @@
+"""
+All data processing is done in this module.
+"""
+
+import pyarrow.parquet as pq
+import numpy as np
+import pandas as pd
+from cbspec.data_classes import QualityCuts
+from cbspec.constants import fd_energy_corr, EeV_corr
+
+def apply_quality_cuts(
+        df,
+        theta_corr,
+        s,
+        sc,
+        dsc,
+        ngsd,
+        bdist,
+        ldf,
+        gf,
+        cuts: QualityCuts
+):
+    """
+    Apply TA-style quality cuts using values from the YAML configuration file.
+    :param df: pandas DataFrame
+               The full parquet batch.
+    :param s: int
+              Index for selecting the correct reconstruction branch (1 or 2).
+    :param theta_corr: float
+                       Array-specific zenith-angle correction.
+    :param cuts: QualityCuts
+                 Dataclass containing all cut thresholds
+    :return: pandas.DataFrame
+             Subset of df passing all cuts
+    """
+
+    # Reconstructed zenith angles with array-specific correction
+    theta = df["theta"].str[s] + theta_corr
+
+    # Fractional S800
+    fs800 = dsc / sc
+
+    # Pedistool error
+    pderr = df["pderr"].str[s]
+
+    # Boolean mask for cuts
+    mask = (
+        (ngsd >= cuts.number_of_good_sd)
+        & (theta < cuts.theta_deg)
+        & (bdist >= cuts.boarder_dist_m)
+        & (gf < cuts.geometry_chi2)
+        & (ldf < cuts.ldf_chi2)
+        & (pderr < cuts.ped_error)
+        & (fs800 < cuts.frac_s800)
+    )
+
+    # Returns the filtered DataFrame
+    return df.loc[mask]
+
+def process_batch(df, array_type, j_index, comp_df, cuts: QualityCuts, batch_idx):
+    """
+    Processes parquet data each batch.
+
+    Steps:
+    1. Detect tree type (resTree or tTlfit)
+    2. Apply FD energy correction
+    3. Compute log10(E) and log10(E_true)
+    4. Apply quality cuts (returns cdata)
+    5. Append accepted log energies to comp_df
+    6. Print batch progress
+
+    :param df: pandas.DataFrame
+               The parquet batch.
+    :param array_type: str
+                       "TASD" or "CBSD".
+    :param j_index: int
+                    0 = MC file, 1 = data file.
+    :param comp_df: list of pandas.DataFrame
+                    [MC_recon, data_recon, MC_raw]
+    :param cuts: QualityCuts
+                 Quality cut thresholds.
+    :return: Updated comp_df entries.
+    """
+
+    print(f"Processing batch {batch_idx} for file index {j_index}...")
+
+    # Array-specific zenith-angle correction
+    theta_corr = 0.5 if array_type == "TASD" else 1.0
+
+    # Detect tree type and extract variables
+    if "energy" in df.columns:
+        print('Tree Type: resTree')
+        s = 2
+        en = df['energy'].str[0] / fd_energy_corr
+        sc = df['sc'].str[0]
+        dsc = df['dsc'].str[0]
+        ngsd = df['nstclust']
+        bdist = df['bdist'] * 1000
+        ldf = df['ldfchi2'].str[0]
+        gf = df['gfchi2'].str[2]
+
+    elif "energy_s800_p" in df.columns:
+        print('Tree Type: tTlfit')
+        s = 1
+        df['energy'] = df['energy_s800_p']
+        en = df['energy'] / fd_energy_corr
+        sc = df['sc']
+        dsc = df['dsc']
+        ngsd = df['ngsd']
+        bdist = df['bdist']
+        ldf = df['ldfchi2pdof']
+        gf = df['gfchi2pdof'].str[1]
+
+    else:
+        raise ValueError("Unknown tree type: no energy column found")
+
+    # MC true energy
+    mcen = df["mcenergy"] / fd_energy_corr
+
+    # Compute log10 energies
+    df['logen'] = np.log10(en) + EeV_corr
+    df['mclogen'] = np.log10(mcen) + EeV_corr
+
+    # Save uncut MC energies (only for j_index == 0)
+    if j_index == 0:
+        comp_df[-1] = pd.concat([comp_df[-1], df['mclogen']], ignore_index=True)
+
+    # Apply quality cuts
+    cdata = apply_quality_cuts(
+        df=df,
+        theta_corr=theta_corr,
+        s=s,
+        sc=sc,
+        dsc=dsc,
+        ngsd=ngsd,
+        bdist=bdist,
+        ldf=ldf,
+        gf=gf,
+        cuts=cuts,
+    )
+
+    # Append reconstructed log10(E) from cdata
+    comp_df[j_index] = pd.concat([comp_df[j_index], cdata["logen"]], ignore_index=True)
+
+    return comp_df[j_index], comp_df[-1], cdata
+
+
+def set_up_data_frame(infiles, array_type, cuts: QualityCuts):
+    """
+    Read MC and data parquet files and return:
+        mc_df      = MC reconstructed dataframe in log10(E)
+        dt_df      = data reconstructed dataframe in log10(E)
+        mc_raw_df  = MC true dataframe in log10(E)
+
+    Includes print statements:
+        - Input file
+        - RecordBatch
+        - Accepted events per batch
+        - Running total per file
+    :param infiles:
+    :param array_type:
+    :param cuts:
+    :return: (mc_df, dt_df, mc_raw_df)
+    """
+    comp_df = [pd.DataFrame(), pd.DataFrame(), pd.DataFrame()]
+
+    for j, infile in enumerate(infiles):
+        print(f"Input File: {infile}")
+        count = 0 # running total of accepted events in this file
+        parquet_file = pq.ParquetFile(infile)
+
+        # Iterate through parquet batches
+        for batch_idx, batch in enumerate(parquet_file.iter_batches(batch_size=160000)):
+            print(f"RecordBatch")
+
+            df = batch.to_pandas()
+
+            # Process batch
+            comp_df[j], comp_df[-1], cdata = process_batch(
+                df=df,
+                array_type=array_type,
+                j_index=j,
+                comp_df=comp_df,
+                cuts=cuts,
+                batch_idx=batch_idx,
+            )
+
+            # Events accepted this batch
+            accepted_now = len(cdata)
+            print(f"Number of accepted events in current loop: {accepted_now}")
+
+            # Update running total
+            count += accepted_now
+            print(f"Total number of accepted events from {infile}: {count}\n")
+
+    # Convert to numpy arrays
+    mc_df = comp_df[0]["logen"].to_numpy()
+    dt_df = comp_df[1]["logen"].to_numpy()
+    mc_raw_df = comp_df[-1]["mclogen"].to_numpy()
+
+    return mc_df, dt_df, mc_raw_df
+
+
