@@ -15,6 +15,7 @@ array:
   type: "TASD" # or "CBSD"
 
 data:
+  # data paths
   # TASD files
   tasd:
     mc_file: "/data/tlfptn_1850.all.tlsdfit.result.parquet"
@@ -65,5 +66,7 @@ quality_cuts:
   frac_s800: 0.25
 
 output:
+  base_dir: "output"
   plots_dir: "output/plots"
   logs_dir: "output/logs"
+  runs_dir: "output/runs"
