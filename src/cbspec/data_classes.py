@@ -11,6 +11,10 @@ from dataclasses import dataclass
 class ArrayConfig:
     """
     Configuration for detector array type and file paths.
+
+    array_type  : "TASD" or "CBSD"
+    mc_file     : MC parquet file path
+    dt_file     : Data parquet file path
     """
     array_type: str
     mc_file: Path
@@ -20,6 +24,11 @@ class ArrayConfig:
 class SpectrumConfig:
     """
     Configuration for spectrum calculation.
+
+    en_range                    : log10(E/EeV) bin edges
+    generated_area_m2           : MC generated area from Dmitri Ivanov's thesis in m^2
+    generated_solid_angel_sr    : MC generated solid angel from Dmitri Ivanov's thesis in sr
+    run_time_s                  : Telescope Array detector run time in s
     """
     en_range: np.ndarray
     generated_area_m2: float
@@ -38,3 +47,13 @@ class QualityCuts:
     ldf_chi2: float
     ped_error: float
     frac_s800: float
+
+@dataclass
+class OutputConfig:
+    """
+    Configuration for output file paths.
+    """
+    base_dir: Path
+    plots_dir: Path
+    logs_dir: Path
+    runs_dir: Path
