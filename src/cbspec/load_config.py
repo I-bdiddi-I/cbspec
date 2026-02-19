@@ -1,5 +1,5 @@
 """
-This module handles YAML configuration loading.
+This module handles YAML configuration loading and builds dataclasses.
 """
 
 from pathlib import Path
@@ -7,12 +7,13 @@ import yaml
 import numpy as np
 from cbspec.data_classes import ArrayConfig, SpectrumConfig, QualityCuts
 
+from src.cbspec.data_classes import OutputConfig
+
+
 def load_config(path: Path):
     """
     Load configuration from YAML file and return ArrayConfig, SpectrumConfig,
     and QualityCuts dataclasses.
-    :param path:
-    :return:
     """
     if not path.exists():
         raise FileNotFoundError(f"File {path} does not exist")
@@ -21,10 +22,21 @@ def load_config(path: Path):
         cfg = yaml.safe_load(f)
 
     # Array configuration
+    array_type = cfg["array"]["type"]
+
+    if array_type == "TASD":
+        mc_file = cfg["data"]["tasd"]["mc_file"]
+        dt_file = cfg["data"]["tasd"]["dt_file"]
+    elif array_type == "CBSD":
+        mc_file = cfg["data"]["cbsd"]["mc_file"]
+        dt_file = cfg["data"]["cbsd"]["dt_file"]
+    else:
+        raise TypeError(f"Array type {array_type} is not supported")
+
     array_cfg = ArrayConfig(
-        array_type=cfg["array"]["type"],
-        mc_file=Path(cfg["data"]["mc_file"]),
-        dt_file=Path(cfg["data"]["dt_file"]),
+        array_type=array_type,
+        mc_file=Path(mc_file),
+        dt_file=Path(dt_file),
     )
 
     # Spectrum configuration
@@ -47,4 +59,12 @@ def load_config(path: Path):
         frac_s800=qc["frac_s800"],
     )
 
-    return array_cfg, spectrum_cfg, quality_cuts
+    out_cfg = cfg["output"]
+    output_cfg = OutputConfig(
+        base_dir=Path(out_cfg["base_dir"]),
+        plots_dir=Path(out_cfg["plots_dir"]),
+        logs_dir=Path(out_cfg["logs_dir"]),
+        runs_dir=Path(out_cfg["runs_dir"]),
+    )
+
+    return array_cfg, spectrum_cfg, quality_cuts, output_cfg
