@@ -59,6 +59,7 @@ def load_config(path: Path):
         frac_s800=qc["frac_s800"],
     )
 
+    # Output configuration
     out_cfg = cfg["output"]
     output_cfg = OutputConfig(
         base_dir=Path(out_cfg["base_dir"]),

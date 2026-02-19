@@ -2,11 +2,13 @@
 All data processing is done in this module.
 """
 
+from pathlib import Path
 import pyarrow.parquet as pq
 import numpy as np
 import pandas as pd
-from cbspec.data_classes import QualityCuts
-from cbspec.constants import fd_energy_corr, EeV_corr
+from .data_classes import QualityCuts
+from .constants import fd_energy_corr, EeV_corr
+from .logging_utils import RunLogger
 
 def apply_quality_cuts(
         df,
@@ -57,7 +59,7 @@ def apply_quality_cuts(
     # Returns the filtered DataFrame
     return df.loc[mask]
 
-def process_batch(df, array_type, j_index, comp_df, cuts: QualityCuts, batch_idx):
+def process_batch(df, array_type, j_index, comp_df, cuts: QualityCuts, batch_idx, logger: RunLogger):
     """
     Processes parquet data each batch.
 
@@ -67,7 +69,7 @@ def process_batch(df, array_type, j_index, comp_df, cuts: QualityCuts, batch_idx
     3. Compute log10(E) and log10(E_true)
     4. Apply quality cuts (returns cdata)
     5. Append accepted log energies to comp_df
-    6. Print batch progress
+    6. Print and logs batch progress
 
     :param df: pandas.DataFrame
                The parquet batch.
@@ -84,14 +86,15 @@ def process_batch(df, array_type, j_index, comp_df, cuts: QualityCuts, batch_idx
     :return: Updated comp_df entries.
     """
 
-    print(f"Processing batch {batch_idx} for file index {j_index}...")
+    logger.log_text(f"Processing batch {batch_idx} for file index {j_index}...")
+    logger.log_json(event="batch_start", batch=batch_idx, file_index=j_index)
 
     # Array-specific zenith-angle correction
     theta_corr = 0.5 if array_type == "TASD" else 1.0
 
     # Detect tree type and extract variables
     if "energy" in df.columns:
-        print('Tree Type: resTree')
+        tree_type = "resTree"
         s = 2
         en = df['energy'].str[0] / fd_energy_corr
         sc = df['sc'].str[0]
@@ -102,7 +105,7 @@ def process_batch(df, array_type, j_index, comp_df, cuts: QualityCuts, batch_idx
         gf = df['gfchi2'].str[2]
 
     elif "energy_s800_p" in df.columns:
-        print('Tree Type: tTlfit')
+        tree_type = "tTlfit"
         s = 1
         df['energy'] = df['energy_s800_p']
         en = df['energy'] / fd_energy_corr
@@ -115,6 +118,10 @@ def process_batch(df, array_type, j_index, comp_df, cuts: QualityCuts, batch_idx
 
     else:
         raise ValueError("Unknown tree type: no energy column found")
+
+    # Log the detected tree type
+    logger.log_text(f"Detected tree type: {tree_type}")
+    logger.log_json(event="tree_type", value=tree_type, batch=batch_idx)
 
     # MC true energy
     mcen = df["mcenergy"] / fd_energy_corr
@@ -144,10 +151,16 @@ def process_batch(df, array_type, j_index, comp_df, cuts: QualityCuts, batch_idx
     # Append reconstructed log10(E) from cdata
     comp_df[j_index] = pd.concat([comp_df[j_index], cdata["logen"]], ignore_index=True)
 
+    # Events accepted this batch
+    accepted_now = len(cdata)
+
+    logger.log_text(f"Number of accepted events in current loop: {accepted_now}")
+    logger.log_json(event="batch_end", batch=batch_idx, accepted=accepted_now)
+
     return comp_df[j_index], comp_df[-1], cdata
 
 
-def set_up_data_frame(infiles, array_type, cuts: QualityCuts):
+def set_up_data_frame(infiles, array_type, cuts: QualityCuts, logger: RunLogger):
     """
     Read MC and data parquet files and return:
         mc_df      = MC reconstructed dataframe in log10(E)
@@ -171,14 +184,14 @@ def set_up_data_frame(infiles, array_type, cuts: QualityCuts):
     comp_df = [pd.DataFrame(), pd.DataFrame(), pd.DataFrame()]
 
     for j, infile in enumerate(infiles):
-        print(f"Input File: {infile}")
+        logger.log_text(f"Input File: {infile}")
+        logger.log_json(event="input_file", file=str(infile), index=j)
+
         count = 0 # running total of accepted events in this file
         parquet_file = pq.ParquetFile(infile)
 
         # Iterate through parquet batches
         for batch_idx, batch in enumerate(parquet_file.iter_batches(batch_size=160000)):
-            print(f"RecordBatch")
-
             df = batch.to_pandas()
 
             # Process batch
@@ -189,15 +202,15 @@ def set_up_data_frame(infiles, array_type, cuts: QualityCuts):
                 comp_df=comp_df,
                 cuts=cuts,
                 batch_idx=batch_idx,
+                logger=logger,
             )
 
-            # Events accepted this batch
-            accepted_now = len(cdata)
-            print(f"Number of accepted events in current loop: {accepted_now}")
-
             # Update running total
+            accepted_now = len(cdata)
             count += accepted_now
-            print(f"Total number of accepted events from {infile}: {count}\n")
+
+            logger.log_text(f"Total number of accepted events from {infile}: {count}")
+            logger.log_json(event="running_total", file=str(infile), total=count)
 
     # Convert to numpy arrays
     mc_df = comp_df[0]["logen"].to_numpy()
@@ -205,5 +218,3 @@ def set_up_data_frame(infiles, array_type, cuts: QualityCuts):
     mc_raw_df = comp_df[-1]["mclogen"].to_numpy()
 
     return mc_df, dt_df, mc_raw_df
-
-
