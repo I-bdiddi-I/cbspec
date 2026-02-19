@@ -1,19 +1,20 @@
 # cbspec
 
-cbspec is a modular, physics‑transparent pipeline for converting TASD or CBSD
-detector data into an ultra‑high‑energy cosmic‑ray spectrum. It follows the same
-architectural philosophy as bkmodel: flat, explicit, reproducible, and easy to extend.
+cbspec is a modular, physics‑transparent Python package for converting Telescope Array TASD or CBSD (checkerboard)
+detector data into an ultra‑high‑energy cosmic‑ray spectrum. 
 
 ## Features
 
 - Parquet ingestion for MC and data
-- TA‑style quality cuts
+- Automatic tree-type detection (resTree vs. tTlfit)
+- TA‑style quality cuts (fully configurable)
 - Energy binning in log10(E/eV)
 - MC → Data transfer function
 - Aperture and exposure calculation
-- Flux and E³J spectrum
+- Flux J(E) and E³J(E) spectrum
 - Feldman–Cousins confidence intervals
 - Publication‑quality plots
+- YAML-driven configuration
 
 ## Install
 

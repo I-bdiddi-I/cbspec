@@ -1,17 +1,28 @@
 name: cbspec
+
 channels:
   - conda-forge
   - defaults
 
 dependencies:
-  - python=3.10
+  # Core Python
+  - python=3.11
+
+  # Data handling
   - numpy
   - pandas
-  - matplotlib
-  - scipy
   - pyarrow
-  - awkward
   - pyyaml
+  - awkward
+
+  # Plotting
+  - matplotlib
+
+  # Scientific utilities
+  - scipy
+
+  # Development tools
   - pip
   - pip:
-      - tqdm
+      - tqdm      # optional progress bars
+      - tabulate  # optional pretty-printing of tables
