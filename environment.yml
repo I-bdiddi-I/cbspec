@@ -26,3 +26,4 @@ dependencies:
   - pip:
       - tqdm      # optional progress bars
       - tabulate  # optional pretty-printing of tables
+      - git+https://github.com/usnistgov/FCpy

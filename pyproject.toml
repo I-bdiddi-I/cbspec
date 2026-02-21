@@ -11,7 +11,7 @@ authors = [
 ]
 readme = "README.md"
 license = { text = "MIT" }
-keywords = ["data", "analysis", "spectrum", "cb"]
+keywords = ["uhecr", "spectrum", "telescope-array", "cosmic-rays", "analysis"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent"
@@ -28,13 +28,16 @@ dependencies = [
     "pyyaml",
     "tqdm",
     "tabulate",
+    # FCpy installed from GitHub
+    "FCpy @ git+https://github.com/usnistgov/FCpy",
 ]
-
-[tool.setuptools.packages.find]
-where = ["src"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
 
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["cbspec*"]
+
 [project.scripts]
-cbspec = "cbspec.main:main"
+cbspec = "cbspec.cli:main"
