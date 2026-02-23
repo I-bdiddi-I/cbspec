@@ -67,7 +67,7 @@ $$
 ## **Outputs** 
 
 ### **Plots**
-Saved to both:
+Saved to **two locations**:
 - **Global copies** → `output/plots/` 
 - **Run-specific copies** → `output/runs/<timestamp>/plots/` 
 
@@ -86,7 +86,7 @@ Saved to both:
 ---
 
 ### **Data products** 
-Saved to both:
+Saved to **two locations**:
 - **Global copies** → `output/data/`
 - **Run-specific copies** → `output/runs/<timestamp>/data/`
 
