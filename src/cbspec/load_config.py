@@ -12,8 +12,11 @@ from src.cbspec.data_classes import OutputConfig
 
 def load_config(path: Path):
     """
-    Load configuration from YAML file and return ArrayConfig, SpectrumConfig,
-    and QualityCuts dataclasses.
+    Load configuration from YAML file and return dataclasses:
+        - ArrayConfig
+        - SpectrumConfig
+        - QualityCuts
+        - OutputConfig
     """
     if not path.exists():
         raise FileNotFoundError(f"File {path} does not exist")
