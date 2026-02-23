@@ -1,14 +1,15 @@
 """
 Feldman-Cousins confidence intervals using the NIST FCpy package.
 
-Use the function-based API described in FCpy README:
+This module provides a thin wrapper around FCpy API:
 
-    import FC
     FC.FC_poisson(n0, b, t, conf=0.95, useCorrection=False, ...)
 
-For cbspec:
-    - Each bin is treated as a Poisson count with no background (b = 0).
-    - We set t = 1 so the CI is directly on counts.
+For cbspec pipeline:
+    - Each energy bin is treated as a Poisson process
+    - Background is assumed to be zero (b = 0)
+    - The exposure scaling is handled elsewhere, so we set t = 1
+    - Confidence intervals are computed directly on counts
 """
 
 import numpy as np
@@ -20,10 +21,10 @@ def feldman_cousins_interval(n_obs, cl=0.68, use_correction=False):
 
     :param n_obs: int
                   Observed number of events in an energy bin
-    :param cl: float
+    :param cl: float, optional
                Confidence level (default 0.68)
-    :param use_correction: bool
-                           Use Roe & Woodroofe correction
+    :param use_correction: bool, optional
+                           Whether to apply the Roe & Woodroofe correction
     :return mu_low: float
                     Lower confidence interval on the true mean (in counts)
     :return mu_high: float
@@ -38,16 +39,16 @@ def feldman_cousins_interval(n_obs, cl=0.68, use_correction=False):
     )
     return float(ci[0]), float(ci[1])
 
-def felman_cousins_vector(counts, cl=0.68, use_correction=False):
+def feldman_cousins_vector(counts, cl=0.68, use_correction=False):
     """
-    Vectorized Feldman-Cousins confidence intervals for an array of observed count.
+    Vectorized Feldman-Cousins confidence intervals for an array of observed counts.
 
     :param counts: array-like
                    Observed counts per energy bin
-    :param cl: float
+    :param cl: float, optional
                Confidence level (default 0.68)
-    :param use_correction: bool
-                           Use Roe & Woodroofe correction
+    :param use_correction: bool, optional
+                           Whether to apply the Roe & Woodroofe correction
     :return mu_low: np.ndarray
                     Array of lower FC limit on counts
     :return mu_high: np.ndarray
