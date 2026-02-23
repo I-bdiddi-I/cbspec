@@ -58,9 +58,9 @@ $$
 - Propagated to flux and spectrum
 
 #### **Spectrum** 
-\[
+$$
 S_i = E_i^3 J_i 
-\] 
+$$ 
 
 ---
 
