@@ -1,7 +1,7 @@
 # cbspec
 
 **cbspec** is a modular, physics‑transparent Python package for converting 
-Telescope Array **TASD** or **CBSD** (checkerboard) detector data into an 
+Telescope Array **TASD** or **CBSD** (checkerboard) surface-detector data into an 
 ultra‑high‑energy cosmic‑ray (UHECR) **flux** and  **E³J(E) spectrum**. 
 
 Basic pipeline:
