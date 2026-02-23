@@ -1,5 +1,12 @@
 """
 Energy binning utilities in log10(E/eV) space.
+
+This module is intentionally simple: it defines the bin edges, centers, and
+widths used throughout the physics pipeline, and provies histogram helpers
+for MC reconstruction, MC thrown, and data reconstructed energies.
+
+All downstream physics (aperture, exposure, flux, spectrum) depends on these
+bins being consistent and reproducible.
 """
 
 import numpy as np
@@ -7,9 +14,10 @@ import numpy as np
 
 def make_energy_bins(en_range):
     """
-    Constructs bin edges, centers, and widths from log10(E/eV) edges
+    Constructs bin edges, centers, and widths from log10(E/eV) edges.
     :param en_range: array-like
                      Bin edges in log10(E/eV)
+                     These come directly from YAML
     :return edges: np.ndarray
                    Bin edges in log10(E/eV)
     :return centers: np.ndarray
@@ -39,7 +47,7 @@ def histogram_events(log_energy, edges):
 
 def histgram_data_per_bin(mc_log_energy, dt_log_energy, mc_raw_log_energy, edges):
     """
-    Histogram MC & data into the same energy bins.
+    Histogram MC reconstructed, data reconstructed, and MC thrown energies into energy bins.
     :param mc_log_energy: array-like
                           Reconstructed MC log10(E/eV)
     :param dt_log_energy: array-like
@@ -62,13 +70,18 @@ def histgram_data_per_bin(mc_log_energy, dt_log_energy, mc_raw_log_energy, edges
 
 def filter_bins(mc_counts, dt_counts, mc_raw_counts, centers):
     """
-    Apply filters:
-        1. energy_mask  : only save bins with log10(E_thrown/eV) > 18.5
-        2. raw_mask     : only save bins with N_MC_thrown > 1
+    Apply physics-motivated bin filters:
+        1. energy_mask:
+            Only keep bins with log10(E_thrown/eV) > 18.5
+            Below this, CBSD reconstruction is not reliable
 
-    This returns masked arrays so that downstream modules (exposure, flux, plotting) only
-    see physically meaningful bins
+        2. raw_mask:
+            Only keep bins with N_MC_thrown > 1
+            This ensures that aperture denominator is non-zero and statistically
+            meaningful
 
+    These filters ensure that downstream modules (exposure, flux, spectrum,
+    plotting) only see physically valid bins
     :param mc_counts: np.ndarray
                       Reconstructed MC counts per bin
     :param dt_counts: np.ndarray
