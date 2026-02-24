@@ -1,14 +1,35 @@
 """
-All data processing is done in this module.
+All data ingestion and processing for cbspec pipeline is handled here.
+
+This module performs the following tasks:
+    1. Read MC and data parquet files batch-wise
+    2. Detect the tree type automatically:
+        - resTree   → TASD standard reconstruction
+        - tTlfit    → (need to remember what this is)
+    3. Apply FD energy correction and compute:
+        - log10(E_recon/eV)
+        - log10(E_thrown/eV) for MC
+    4. Apply TA-style quality cuts (configurable in YAML).
+    5. Accumulate:
+        - reconstructed MC log10(E/eV)
+        - reconstructed data log10(E/eV)
+        - thrown MC log10(E/eV)
+    6. Log all steps to text + JSON logs
+
+This module contains **no physics** beyond energy corrections and log10
+conversion -- all physics (binning, aperture, exposure, flux, spectrum) is
+handled downstream.
 """
 
 from pathlib import Path
 import pyarrow.parquet as pq
 import numpy as np
 import pandas as pd
+
 from .data_classes import QualityCuts
 from .constants import fd_energy_corr, EeV_corr
 from .logging_utils import RunLogger
+
 
 def apply_quality_cuts(
         df,
@@ -23,17 +44,33 @@ def apply_quality_cuts(
         cuts: QualityCuts
 ):
     """
-    Apply TA-style quality cuts using values from the YAML configuration file.
-    :param df: pandas DataFrame
-               The full parquet batch.
-    :param s: int
-              Index for selecting the correct reconstruction branch (1 or 2).
+    Apply TA-style quality cuts using thresholds from the YAML configuration file.
+    :param df: pandas.DataFrame
+               The full parquet batch
     :param theta_corr: float
-                       Array-specific zenith-angle correction.
+                       Array-specific zenith-angle correction:
+                        - TASD → 0.5°
+                        - CBSD → 1.0°
+    :param s: int
+              Index for selecting the correct reconstruction branch:
+                - resTree → 2
+                - tTlfit → 1
+    :param sc: array-like
+               S800 values (branch dependent)
+    :param dsc: array-like
+                ΔS800 values (branch dependent)
+    :param ngsd: array-like
+                 Number of good surface detectors
+    :param bdist: array-like
+                  Detector array border distance in meters
+    :param ldf: array-like
+                LDF χ² values
+    :param gf: array-like
+               Geometry χ² values
     :param cuts: QualityCuts
                  Dataclass containing all cut thresholds
-    :return: pandas.DataFrame
-             Subset of df passing all cuts
+    :return df.loc[mask]: pandas.DataFrame
+                          Subset of df passing all cuts
     """
 
     # Reconstructed zenith angles with array-specific correction
@@ -42,10 +79,10 @@ def apply_quality_cuts(
     # Fractional S800
     fs800 = dsc / sc
 
-    # Pedistool error
+    # Pedestal error
     pderr = df["pderr"].str[s]
 
-    # Boolean mask for cuts
+    # Boolean mask for all cuts
     mask = (
         (ngsd >= cuts.number_of_good_sd)
         & (theta < cuts.theta_deg)
@@ -66,24 +103,35 @@ def process_batch(df, array_type, j_index, comp_df, cuts: QualityCuts, batch_idx
     Steps:
     1. Detect tree type (resTree or tTlfit)
     2. Apply FD energy correction
-    3. Compute log10(E) and log10(E_true)
+    3. Compute:
+        - log10(E_recon/eV)
+        - log10(E_thrown/eV) for MC
     4. Apply quality cuts (returns cdata)
     5. Append accepted log energies to comp_df
-    6. Print and logs batch progress
+    6. Log batch progress
 
     :param df: pandas.DataFrame
-               The parquet batch.
+               The parquet batch
     :param array_type: str
-                       "TASD" or "CBSD".
+                       "TASD" or "CBSD"
     :param j_index: int
-                    0 = MC file, 1 = data file.
+                    0 → MC file
+                    1 → data file.
     :param comp_df: list of pandas.DataFrame
-                    [MC_recon, data_recon, MC_raw]
+                    Accumulators:
+                        comp_df[0] → MC reconstructed log10(E/eV)
+                        comp_df[1] → data reconstructed log10(E/eV)
+                        comp_df[2] → MC thrown log10(E/eV)
     :param cuts: QualityCuts
-                 Quality cut thresholds.
+                 Quality cut thresholds
     :param batch_idx: int
-                      current batch index
-    :return: Updated comp_df entries.
+                      Current batch index
+    :param logger: RunLogger
+                   Handles text + JSON logging
+    :return comp_df: pandas.DataFrame
+                     Updated comp_df entries
+    :return cdata: pandas.DataFrame
+                   Filtered DataFrame of current batch
     """
 
     logger.log_text(f"Processing batch {batch_idx} for file index {j_index}...")
@@ -95,12 +143,12 @@ def process_batch(df, array_type, j_index, comp_df, cuts: QualityCuts, batch_idx
     # Detect tree type and extract variables
     if "energy" in df.columns:
         tree_type = "resTree"
-        s = 2
+        s = 2 # branch index
         en = df['energy'].str[0] / fd_energy_corr
         sc = df['sc'].str[0]
         dsc = df['dsc'].str[0]
         ngsd = df['nstclust']
-        bdist = df['bdist'] * 1000
+        bdist = df['bdist'] * 1000 # km → m
         ldf = df['ldfchi2'].str[0]
         gf = df['gfchi2'].str[2]
 
@@ -130,7 +178,7 @@ def process_batch(df, array_type, j_index, comp_df, cuts: QualityCuts, batch_idx
     df['logen'] = np.log10(en) + EeV_corr
     df['mclogen'] = np.log10(mcen) + EeV_corr
 
-    # Save uncut MC energies (only for j_index == 0)
+    # Save uncut MC thrown energies (only for j_index == 0 MC file)
     if j_index == 0:
         comp_df[-1] = pd.concat([comp_df[-1], df['mclogen']], ignore_index=True)
 
@@ -148,7 +196,7 @@ def process_batch(df, array_type, j_index, comp_df, cuts: QualityCuts, batch_idx
         cuts=cuts,
     )
 
-    # Append reconstructed log10(E) from cdata
+    # Append reconstructed log10(E) from accepted events
     comp_df[j_index] = pd.concat([comp_df[j_index], cdata["logen"]], ignore_index=True)
 
     # Events accepted this batch
@@ -160,12 +208,12 @@ def process_batch(df, array_type, j_index, comp_df, cuts: QualityCuts, batch_idx
     return comp_df[j_index], comp_df[-1], cdata
 
 
-def set_up_data_frame(infiles, array_type, cuts: QualityCuts, logger: RunLogger):
+def set_up_energy_array(infiles, array_type, cuts: QualityCuts, logger: RunLogger):
     """
     Read MC and data parquet files and return:
-        mc_df      = MC reconstructed dataframe in log10(E)
-        dt_df      = data reconstructed dataframe in log10(E)
-        mc_raw_df  = MC true dataframe in log10(E)
+        mc_array            = MC reconstructed log10(E/eV) np.ndarray
+        dt_array            = data reconstructed log10(E/eV) np.ndarray
+        mc_thrown_array     = MC thrown log10(E/eV) np.ndarray
 
     Includes print statements:
         - Input file
@@ -179,7 +227,11 @@ def set_up_data_frame(infiles, array_type, cuts: QualityCuts, logger: RunLogger)
                        "TASD" or "CBSD"
     :param cuts: QualityCuts
                  Quality cut thresholds
-    :return: (mc_df, dt_df, mc_raw_df)
+    :param logger: RunLogger
+                   Handles text + JSON logging
+    :return mc_array: np.ndarray
+    :return dt_array: np.ndarray
+    :return mc_thrown_array: np.ndarray
     """
     comp_df = [pd.DataFrame(), pd.DataFrame(), pd.DataFrame()]
 
@@ -212,9 +264,9 @@ def set_up_data_frame(infiles, array_type, cuts: QualityCuts, logger: RunLogger)
             logger.log_text(f"Total number of accepted events from {infile}: {count}")
             logger.log_json(event="running_total", file=str(infile), total=count)
 
-    # Convert to numpy arrays
-    mc_df = comp_df[0]["logen"].to_numpy()
-    dt_df = comp_df[1]["logen"].to_numpy()
-    mc_raw_df = comp_df[-1]["mclogen"].to_numpy()
+    # Convert accumulated DataFrames to numpy arrays
+    mc_array = comp_df[0]["logen"].to_numpy()
+    dt_array = comp_df[1]["logen"].to_numpy()
+    mc_thrown_array = comp_df[-1]["mclogen"].to_numpy()
 
-    return mc_df, dt_df, mc_raw_df
+    return mc_array, dt_array, mc_thrown_array
