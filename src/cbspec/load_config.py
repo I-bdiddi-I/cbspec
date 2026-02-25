@@ -1,5 +1,39 @@
 """
-This module handles YAML configuration loading and builds dataclasses.
+Load YAML configuration files and convert them into the structured dataclasses
+used throughout the cbspec pipeline.
+
+This module is intentionally minimal: it performs no validation beyond ensuring
+required fields exist. All physics and processing logic lives elsewhere.
+
+The YAML file is expected to contain the following top-level keys:
+
+    array:
+        array_typ: str
+        mc_file: path/to/mc.parquet
+        dt_file: path/to/data.parquet
+
+    spectrum:
+        en_range: List
+        generated_area_m2: float
+        generated_solid_angle_sr: float
+        run_time_s: float
+
+    quality_cuts:
+        number_of_good_sd: int
+        theta_deg: float
+        boarder_dist_m: float
+        geometry_chi2: float
+        ldf_chi2: float
+        ped_error: float
+        frac_s800: float
+
+    output:
+        base_dir: str
+        plots_dir: str
+        log_dir: str
+        runs_dir: str
+
+These fields map directly into the dataclasses defined in data_classes.py.
 """
 
 from pathlib import Path
@@ -10,11 +44,15 @@ from .data_classes import ArrayConfig, SpectrumConfig, QualityCuts, OutputConfig
 
 def load_config(path: Path):
     """
-    Load configuration from YAML file and return dataclasses:
+    Load a YAML configuration file and return the corresponding dataclasses:
         - ArrayConfig
         - SpectrumConfig
         - QualityCuts
         - OutputConfig
+
+    Notes:
+        - All paths are normalized using pathlib.Path
+        - No validation is performed beyond requiring the expected keys
     """
     if not path.exists():
         raise FileNotFoundError(f"File {path} does not exist")
