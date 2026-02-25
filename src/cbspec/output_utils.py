@@ -45,8 +45,8 @@ def save_flux_csv(
         n_events,
         exposure,
         flux,
-        flux_low,
-        flux_high):
+        flux_lower,
+        flux_upper):
     """
     Save final flux table to CSV.
 
@@ -82,9 +82,9 @@ def save_flux_csv(
                      Exposure per bin [m² sr s]
     :param flux: array-like
                  Differential flux J(E) [m^-2 sr^-1 s^-1 eV^-1]
-    :param flux_low: array-like
+    :param flux_lower: array-like
                      Feldman-Cousins lower bounds on J(E)
-    :param flux_high: array-like
+    :param flux_upper: array-like
                       Feldman-Cousins upper bounds on J(E)
     :return global_path: tuple of str
                          Path to global saved CSV file
@@ -106,8 +106,8 @@ def save_flux_csv(
         "N_events": n_events,
         "Exposure": exposure,
         "J": flux,
-        "Lower": flux_low,
-        "Upper": flux_high,
+        "Lower": flux_lower,
+        "Upper": flux_upper,
     })
 
     # Array-tagged filename
@@ -129,8 +129,8 @@ def save_spectrum_csv(
         array_type: str,
         centers,
         spectrum,
-        spectrum_low,
-        spectrum_high):
+        spectrum_lower,
+        spectrum_upper):
     """
     Save final E³J(E) spectrum table to CSV.
 
@@ -157,9 +157,9 @@ def save_spectrum_csv(
                     log10(E/eV) bin centers
     :param spectrum: array-like
                      E³J(E) spectrum values
-    :param spectrum_low: array-like
+    :param spectrum_lower: array-like
                          Feldman-Cousins lower bounds on J(E) in spectrum space
-    :param spectrum_high: array-like
+    :param spectrum_upper: array-like
                           Feldman-Cousins upper bounds on J(E) in spectrum space
     :return global_path: tuple of str
                          Path to global saved CSV file
@@ -178,8 +178,8 @@ def save_spectrum_csv(
     df = pd.DataFrame({
         "Energy": centers,
         "Spectrum": spectrum,
-        "Lower": spectrum_low,
-        "Upper": spectrum_high,
+        "Lower": spectrum_lower,
+        "Upper": spectrum_upper,
     })
 
     # Array-tagged filename

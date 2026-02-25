@@ -45,14 +45,14 @@ def histogram_events(log_energy, edges):
     return counts
 
 
-def histgram_data_per_bin(mc_log_energy, dt_log_energy, mc_raw_log_energy, edges):
+def histgram_data_per_bin(mc_log_energy, dt_log_energy, mc_thrown_log_energy, edges):
     """
     Histogram MC reconstructed, data reconstructed, and MC thrown energies into energy bins.
     :param mc_log_energy: array-like
                           Reconstructed MC log10(E/eV)
     :param dt_log_energy: array-like
                           Reconstructed data log10(E/eV)
-    :param mc_raw_log_energy: array-like
+    :param mc_thrown_log_energy: array-like
                               Thrown MC log10(E/eV)
     :param edges: array-like
                   Bin edges in log10(E/eV)
@@ -60,13 +60,13 @@ def histgram_data_per_bin(mc_log_energy, dt_log_energy, mc_raw_log_energy, edges
                        Reconstructed MC counts per energy bin
     :return dt_counts: np.ndarray
                        Reconstructed data counts per energy bin
-    :return mc_raw_counts: np.ndarray
+    :return mc_thrown_counts: np.ndarray
                            Thrown MC counts per energy bin
     """
     mc_counts = histogram_events(mc_log_energy, edges)
     dt_counts = histogram_events(dt_log_energy, edges)
-    mc_raw_counts = histogram_events(mc_raw_log_energy, edges)
-    return mc_counts, dt_counts, mc_raw_counts
+    mc_thrown_counts = histogram_events(mc_thrown_log_energy, edges)
+    return mc_counts, dt_counts, mc_thrown_counts
 
 def filter_bins(mc_counts, dt_counts, mc_raw_counts, centers):
     """
