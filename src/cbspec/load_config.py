@@ -5,9 +5,7 @@ This module handles YAML configuration loading and builds dataclasses.
 from pathlib import Path
 import yaml
 import numpy as np
-from cbspec.data_classes import ArrayConfig, SpectrumConfig, QualityCuts
-
-from src.cbspec.data_classes import OutputConfig
+from .data_classes import ArrayConfig, SpectrumConfig, QualityCuts, OutputConfig
 
 
 def load_config(path: Path):
