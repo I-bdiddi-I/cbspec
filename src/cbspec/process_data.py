@@ -265,8 +265,8 @@ def set_up_energy_array(infiles, array_type, cuts: QualityCuts, logger: RunLogge
             logger.log_json(event="running_total", file=str(infile), total=count)
 
     # Convert accumulated DataFrames to numpy arrays
-    mc_array = comp_df[0]["logen"].to_numpy()
-    dt_array = comp_df[1]["logen"].to_numpy()
-    mc_thrown_array = comp_df[-1]["mclogen"].to_numpy()
+    mc_array = comp_df[0].to_numpy()
+    dt_array = comp_df[1].to_numpy()
+    mc_thrown_array = comp_df[-1].to_numpy()
 
     return mc_array, dt_array, mc_thrown_array

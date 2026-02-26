@@ -72,8 +72,13 @@ class RunLogger:
             YYYY-MM-DD HH:MM:SS     message
         """
         line = f"{self._ts()}\t{message}\n"
+
+        # write to file
         self.text_file.write(line)
         self.text_file.flush()
+
+        # print to console
+        print(line, end="")
 
     # JSON logging
     def log_json(self, **kwargs):
@@ -86,7 +91,10 @@ class RunLogger:
         This format is ideal for downstream parsing.
         """
         entry = {"time": self._ts(), **kwargs}
-        self.json_file.write(json.dumps(entry) + "\n")
+        line = json.dumps(entry) + "\n"
+
+        # write to file
+        self.json_file.write(line)
         self.json_file.flush()
 
     # Cleanup

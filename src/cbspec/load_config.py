@@ -54,6 +54,8 @@ def load_config(path: Path):
         - All paths are normalized using pathlib.Path
         - No validation is performed beyond requiring the expected keys
     """
+    path = Path(path)
+
     if not path.exists():
         raise FileNotFoundError(f"File {path} does not exist")
 

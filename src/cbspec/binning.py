@@ -122,3 +122,11 @@ def filter_bins(mc_counts, dt_counts, mc_raw_counts, centers):
         mc_raw_counts[mask],
         centers[mask],
     )
+
+
+def energy_conv(centers, widths):
+    energies_ev = 10. ** np.asarray(centers, dtype=float)
+
+    delta_energies_ev = energies_ev * (10 ** (widths / 2) - 10 ** (-widths / 2))
+
+    return energies_ev, delta_energies_ev

@@ -13,13 +13,14 @@ The pipeline performs:
      4. Energy binning
      5. Histogramming (MC_recon, MC_thrown, data)
      6. Bin filtering
-     7. Aperture AΩ(E)
-     8. Exposure λ(E)
-     9. Feldman-Cousins intervals
-    10. Flux J(E)
-    11. Spectrum E³J(E)
-    12. CSV output (global + run-specific)
-    13. Plotting (global + run-specific)
+     7. Energy conversions (log10(E/eV) to eV)
+     8. Aperture AΩ(E)
+     9. Exposure λ(E)
+    10. Feldman-Cousins intervals
+    11. Flux J(E)
+    12. Spectrum E³J(E)
+    13. CSV output (global + run-specific)
+    14. Plotting (global + run-specific)
 """
 
 from pathlib import Path
@@ -27,8 +28,11 @@ from datetime import datetime
 
 import numpy as np
 
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning, message="divide by zero encountered in log10")
+
 from .process_data import set_up_energy_array
-from .binning import make_energy_bins, histgram_data_per_bin, filter_bins
+from .binning import make_energy_bins, histgram_data_per_bin, filter_bins, energy_conv
 from .exposure import compute_aperture, compute_exposure
 from .feldman_cousins import feldman_cousins_vector
 from .flux import compute_flux
@@ -86,6 +90,7 @@ def run_pipeline(array_cfg, spectrum_cfg, cuts_cfg, output_cfg):
 
     # Parquet ingestion (MC + data)
     logger.log_text("Reading parquet files and applying quality cuts...")
+    logger.log_json(event="parquet_ingest")
     mc_array, dt_array, mc_thrown_array = set_up_energy_array(
         infiles=[array_cfg.mc_file, array_cfg.dt_file],
         array_type=array_cfg.array_type,
@@ -94,14 +99,20 @@ def run_pipeline(array_cfg, spectrum_cfg, cuts_cfg, output_cfg):
     )
 
     # Energy binning
+    logger.log_text("Creating energy bins...")
+    logger.log_json(event="create_bins")
     edges, centers, widths = make_energy_bins(spectrum_cfg.en_range)
 
     # Histogram MC_recon, MC_thrown, data
+    logger.log_text("Binning energy arrays...")
+    logger.log_json(event="bin_energy")
     mc_counts, dt_counts, mc_thrown_counts = histgram_data_per_bin(
         mc_array, dt_array, mc_thrown_array, edges
     )
 
     # Filter bins (log10(E/eV) > 18.5, N_MC_Thrown > 1)
+    logger.log_text("Filtering energy bins...")
+    logger.log_json(event="filter_energy")
     (
         mask,
         mc_counts_f,
@@ -112,7 +123,14 @@ def run_pipeline(array_cfg, spectrum_cfg, cuts_cfg, output_cfg):
 
     widths_f = widths[mask]
 
+    # Convert filtered log10(E/eV) energy centers and widths into eV
+    logger.log_text("Converting log10(E/eV) to eV...")
+    logger.log_json(event="convert_log10_eV")
+    energies_ev, delta_energies_ev = energy_conv(centers_f, widths_f)
+
     # Aperture AΩ(E)
+    logger.log_text("Calculating aperture...")
+    logger.log_json(event="aperture")
     aperture = compute_aperture(
         mc_counts_f,
         mc_thrown_counts_f,
@@ -121,19 +139,27 @@ def run_pipeline(array_cfg, spectrum_cfg, cuts_cfg, output_cfg):
     )
 
     # Exposure λ(E)
+    logger.log_text("Calculating exposure...")
+    logger.log_json(event="exposure")
     exposure = compute_exposure(aperture, spectrum_cfg.run_time_s)
 
     # Feldman-Cousins intervals on counts
-    fc_lower, fc_upper = feldman_cousins_vector(dt_counts_f, cl=0.68)
+    logger.log_text("Calculating Feldman-Cousins intervals...")
+    logger.log_json(event="feldman_cousins")
+    fc_lower, fc_upper = feldman_cousins_vector(dt_counts_f, cl=0.95)
 
     # Flux J(E)
-    flux = compute_flux(dt_counts_f, exposure, widths_f)
-    flux_lower = compute_flux(fc_lower, exposure, widths_f)
-    flux_upper = compute_flux(fc_upper, exposure, widths_f)
+    logger.log_text("Calculating Flux J(E)...")
+    logger.log_json(event="flux")
+    flux = compute_flux(dt_counts_f, exposure, delta_energies_ev)
+    flux_lower = compute_flux(fc_lower, exposure, delta_energies_ev)
+    flux_upper = compute_flux(fc_upper, exposure, delta_energies_ev)
 
     # Spectrum E³J(E)
+    logger.log_text("Calculating Spectrum E³J(E)...")
+    logger.log_json(event="spectrum")
     spectrum, spectrum_lower, spectrum_upper = flux_to_spectrum(
-        centers_f, flux, flux_lower, flux_upper
+        energies_ev, flux, flux_lower, flux_upper
     )
 
     # Save CSV outputs (global + run-specific)
@@ -148,6 +174,7 @@ def run_pipeline(array_cfg, spectrum_cfg, cuts_cfg, output_cfg):
         flux=flux,
         flux_lower=flux_lower,
         flux_upper=flux_upper,
+        logger=logger,
     )
 
     save_spectrum_csv(
@@ -158,16 +185,17 @@ def run_pipeline(array_cfg, spectrum_cfg, cuts_cfg, output_cfg):
         spectrum=spectrum,
         spectrum_lower=spectrum_lower,
         spectrum_upper=spectrum_upper,
+        logger=logger,
     )
 
     # Plotting (global + run-specific)
-    plot_aperture(centers_f, aperture, array_cfg.array_type, output_cfg.base_dir, run_dir)
-    plot_exposure(centers_f, exposure, array_cfg.array_type, output_cfg.base_dir, run_dir)
-    plot_flux(centers_f, flux, flux_lower, flux_upper, array_cfg.array_type, output_cfg.base_dir, run_dir)
-    plot_spectrum(centers_f, spectrum, spectrum_lower, spectrum_upper, array_cfg.array_type,output_cfg.base_dir, run_dir)
-    mc_recon_hist(mc_array,array_cfg.array_type, output_cfg.base_dir, run_dir)
-    mc_thrown_hist(mc_thrown_array,array_cfg.array_type, output_cfg.base_dir, run_dir)
-    dt_hist(dt_array, array_cfg.array_type, output_cfg.base_dir, run_dir)
+    plot_aperture(centers_f, aperture, array_cfg.array_type, output_cfg.base_dir, run_dir, logger)
+    plot_exposure(centers_f, exposure, array_cfg.array_type, output_cfg.base_dir, run_dir, logger)
+    plot_flux(centers_f, flux, flux_lower, flux_upper, array_cfg.array_type, output_cfg.base_dir, run_dir, logger)
+    plot_spectrum(centers_f, spectrum, spectrum_lower, spectrum_upper, array_cfg.array_type,output_cfg.base_dir, run_dir, logger)
+    mc_recon_hist(mc_array,array_cfg.array_type, output_cfg.base_dir, run_dir, logger)
+    mc_thrown_hist(mc_thrown_array,array_cfg.array_type, output_cfg.base_dir, run_dir, logger)
+    dt_hist(dt_array, array_cfg.array_type, output_cfg.base_dir, run_dir, logger)
 
     # Finalize
     logger.log_text("Pipeline completed successfully.")

@@ -19,6 +19,8 @@ This ensures that:
 import os
 import pandas as pd
 
+from .logging_utils import RunLogger
+
 
 # Directory creation helper
 def ensure_dir(path: str):
@@ -46,7 +48,9 @@ def save_flux_csv(
         exposure,
         flux,
         flux_lower,
-        flux_upper):
+        flux_upper,
+        logger: RunLogger,
+):
     """
     Save final flux table to CSV.
 
@@ -86,6 +90,7 @@ def save_flux_csv(
                      Feldman-Cousins lower bounds on J(E)
     :param flux_upper: array-like
                       Feldman-Cousins upper bounds on J(E)
+    :param logger: RunLogger
     :return global_path: tuple of str
                          Path to global saved CSV file
     :return run_path: tuple of str
@@ -117,7 +122,12 @@ def save_flux_csv(
     run_path = os.path.join(run_data_dir, filename)
 
     # Save to both locations
+    logger.log_text(f"Saving {filename} to {global_path}...")
+    logger.log_json(event=f"save_{filename}_global")
     df.to_csv(global_path, index=False)
+
+    logger.log_text(f"Saving {filename} to {run_path}...")
+    logger.log_json(event=f"save_{filename}_run")
     df.to_csv(run_path, index=False)
 
     return global_path, run_path
@@ -130,7 +140,9 @@ def save_spectrum_csv(
         centers,
         spectrum,
         spectrum_lower,
-        spectrum_upper):
+        spectrum_upper,
+        logger: RunLogger,
+):
     """
     Save final E³J(E) spectrum table to CSV.
 
@@ -161,6 +173,7 @@ def save_spectrum_csv(
                          Feldman-Cousins lower bounds on J(E) in spectrum space
     :param spectrum_upper: array-like
                           Feldman-Cousins upper bounds on J(E) in spectrum space
+    :param logger: RunLogger
     :return global_path: tuple of str
                          Path to global saved CSV file
     :return run_path: tuple of str
@@ -189,7 +202,12 @@ def save_spectrum_csv(
     run_path = os.path.join(run_data_dir, filename)
 
     # Save to both locations
+    logger.log_text(f"Saving {filename} to {global_path}...")
+    logger.log_json(event=f"save_{filename}_global")
     df.to_csv(global_path, index=False)
+
+    logger.log_text(f"Saving {filename} to {run_path}...")
+    logger.log_json(event=f"save_{filename}_run")
     df.to_csv(run_path, index=False)
 
     return global_path, run_path

@@ -155,6 +155,7 @@ pip install -e .
 ```
 src/cbspec/
     __init__.py
+    __main__.py
     binning.py
     cli.py 
     constants.py

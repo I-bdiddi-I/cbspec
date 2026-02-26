@@ -88,8 +88,3 @@ def main():
         cuts_cfg=cuts_cfg,
         output_cfg=output_cfg,
     )
-
-
-# Allow `python -m cbspec` to work
-if __name__ == "__main__":
-    main()
