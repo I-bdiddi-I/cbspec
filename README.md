@@ -29,10 +29,13 @@ and clean CSV outputs for downstream analysis.
 
 #### **Energy binning**
 - Energy binning in **log10(E/eV)**
-- Histograms MC_reco, MC_thrown, and data
+- Histograms MC_recon, MC_thrown, and data
 - Bin filtering:
   - log10(E/eV) > 18.5
   - N_MC_thrown > 1
+- Convert energies from **log10(E/eV)** to **eV** for:
+  - $E_i$
+  - $\Delta E_i$
 
 #### **Aperture** 
 

@@ -38,18 +38,18 @@ def pars_args():
         help="Path to YAML configuration file.",
     )
     parser.add_argument(
-        "--array-type",
+        "--array_type",
         type=str,
         choices=["TASD", "CBSD"],
         help="Override array type (TASD or CBSD).",
     )
     parser.add_argument(
-        "--mc-file",
+        "--mc_file",
         type=str,
         help="Override MC parquet file path.",
     )
     parser.add_argument(
-        "--dt-file",
+        "--dt_file",
         type=str,
         help="Override data parquet file path.",
     )
@@ -69,7 +69,7 @@ def main():
     args = pars_args()
 
     # Load YAML config → dataclasses
-    array_cfg, spectrum_cfg, cuts_cfg, output_cfg = load_config(args.config)
+    array_cfg, spectrum_cfg, cuts_cfg, output_cfg, cfg = load_config(args.config)
 
     # Apply CLI overrides
     if args.array_type is not None:
@@ -87,4 +87,5 @@ def main():
         spectrum_cfg=spectrum_cfg,
         cuts_cfg=cuts_cfg,
         output_cfg=output_cfg,
+        cfg=cfg
     )

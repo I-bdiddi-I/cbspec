@@ -75,7 +75,7 @@ def plot_error_bars_log_energy(centers, y_comp, lower, upper):
     :param upper:
     :return:
     """
-    yerr = [lower, upper]
+    yerr = [y_comp - np.asarray(lower), np.asarray(upper) - y_comp]
 
     plt.figure(figsize=[8, 6])
     plt.errorbar(

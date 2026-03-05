@@ -68,7 +68,7 @@ def _make_run_directory(output_cfg):
 
 
 # Main pipeline
-def run_pipeline(array_cfg, spectrum_cfg, cuts_cfg, output_cfg):
+def run_pipeline(array_cfg, spectrum_cfg, cuts_cfg, output_cfg, cfg):
     """
     Execute the full cbspec pipeline.
     :param array_cfg: ArrayConfig
@@ -79,6 +79,7 @@ def run_pipeline(array_cfg, spectrum_cfg, cuts_cfg, output_cfg):
                      TA-style quality cuts thresholds
     :param output_cfg: OutputConfig
                        Base, plots, logs, and runs directory configuration.
+    :param cfg: Configuration
     :return dict: Dictionary containing all final arrays (flux, spectrum, etc.)
     """
     # Create run directory + logger
@@ -87,6 +88,20 @@ def run_pipeline(array_cfg, spectrum_cfg, cuts_cfg, output_cfg):
 
     logger.log_text("Starting cbspec pipeline...")
     logger.log_json(event="pipeline_start", array=array_cfg.array_type)
+
+    # Select MC/DT files based on final array type (after overrides)
+    logger.log_text("Determining array type...")
+    logger.log_json(event="type_select")
+    if array_cfg.array_type == "TASD":
+        array_cfg.mc_file = Path(cfg["data"]["tasd"]["mc_file"])
+        array_cfg.dt_file = Path(cfg["data"]["tasd"]["dt_file"])
+    elif array_cfg.array_type == "CBSD":
+        array_cfg.mc_file = Path(cfg["data"]["cbsd"]["mc_file"])
+        array_cfg.dt_file = Path(cfg["data"]["cbsd"]["dt_file"])
+    else:
+        raise TypeError(f"Array type {array_cfg.array_type} is not supported")
+    logger.log_text(f"Array type: {array_cfg.array_type}")
+    logger.log_json(event=f"{array_cfg.array_type}_array_selected", array=array_cfg.array_type)
 
     # Parquet ingestion (MC + data)
     logger.log_text("Reading parquet files and applying quality cuts...")
@@ -146,7 +161,7 @@ def run_pipeline(array_cfg, spectrum_cfg, cuts_cfg, output_cfg):
     # Feldman-Cousins intervals on counts
     logger.log_text("Calculating Feldman-Cousins intervals...")
     logger.log_json(event="feldman_cousins")
-    fc_lower, fc_upper = feldman_cousins_vector(dt_counts_f, cl=0.95)
+    fc_lower, fc_upper = feldman_cousins_vector(dt_counts_f, cl=0.68)
 
     # Flux J(E)
     logger.log_text("Calculating Flux J(E)...")

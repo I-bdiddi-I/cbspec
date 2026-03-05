@@ -65,19 +65,10 @@ def load_config(path: Path):
     # Array configuration
     array_type = cfg["array"]["type"]
 
-    if array_type == "TASD":
-        mc_file = cfg["data"]["tasd"]["mc_file"]
-        dt_file = cfg["data"]["tasd"]["dt_file"]
-    elif array_type == "CBSD":
-        mc_file = cfg["data"]["cbsd"]["mc_file"]
-        dt_file = cfg["data"]["cbsd"]["dt_file"]
-    else:
-        raise TypeError(f"Array type {array_type} is not supported")
-
     array_cfg = ArrayConfig(
         array_type=array_type,
-        mc_file=Path(mc_file),
-        dt_file=Path(dt_file),
+        mc_file=None,
+        dt_file=None,
     )
 
     # Spectrum configuration
@@ -109,4 +100,4 @@ def load_config(path: Path):
         runs_dir=Path(out_cfg["runs_dir"]),
     )
 
-    return array_cfg, spectrum_cfg, quality_cuts, output_cfg
+    return array_cfg, spectrum_cfg, quality_cuts, output_cfg, cfg
